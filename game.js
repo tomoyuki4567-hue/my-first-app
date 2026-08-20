@@ -36,11 +36,45 @@ class Player {
     }
 
     draw(ctx) {
+        // プレイヤーの体
         ctx.fillStyle = '#FF6B6B';
         ctx.fillRect(this.x, this.y, this.width, this.height);
-        ctx.fillStyle = '#333';
-        ctx.fillRect(this.x + 8, this.y + 8, 8, 8);
-        ctx.fillRect(this.x + 14, this.y + 8, 8, 8);
+        
+        // グラデーション効果
+        const gradient = ctx.createLinearGradient(this.x, this.y, this.x, this.y + this.height);
+        gradient.addColorStop(0, '#FF8C8C');
+        gradient.addColorStop(1, '#DD4444');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+        
+        // 影
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        ctx.fillRect(this.x, this.y + this.height - 3, this.width, 3);
+        
+        // 目
+        ctx.fillStyle = '#FFF';
+        ctx.beginPath();
+        ctx.arc(this.x + 10, this.y + 12, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(this.x + 20, this.y + 12, 4, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // 瞳
+        ctx.fillStyle = '#000';
+        ctx.beginPath();
+        ctx.arc(this.x + 10, this.y + 12, 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(this.x + 20, this.y + 12, 2, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // 口
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(this.x + 15, this.y + 25, 3, 0, Math.PI);
+        ctx.stroke();
     }
 
     collidesWith(enemy) {
@@ -65,11 +99,39 @@ class Enemy {
     }
 
     draw(ctx) {
-        ctx.fillStyle = '#4ECDC4';
+        // グラデーション背景
+        const gradient = ctx.createLinearGradient(this.x, this.y, this.x + this.width, this.y + this.height);
+        gradient.addColorStop(0, '#9D4EDD');
+        gradient.addColorStop(1, '#3A0CA3');
+        ctx.fillStyle = gradient;
         ctx.fillRect(this.x, this.y, this.width, this.height);
-        ctx.fillStyle = '#333';
-        ctx.fillRect(this.x + 8, this.y + 8, 8, 8);
-        ctx.fillRect(this.x + 19, this.y + 8, 8, 8);
+        
+        // 敵の枠線
+        ctx.strokeStyle = '#7209B7';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(this.x, this.y, this.width, this.height);
+        
+        // 影
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+        ctx.fillRect(this.x, this.y + this.height - 3, this.width, 3);
+        
+        // 目
+        ctx.fillStyle = '#FFD60A';
+        ctx.beginPath();
+        ctx.arc(this.x + 10, this.y + 10, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(this.x + 22, this.y + 10, 5, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // 瞳（敵らしく）
+        ctx.fillStyle = '#000';
+        ctx.beginPath();
+        ctx.arc(this.x + 10, this.y + 10, 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(this.x + 22, this.y + 10, 2, 0, Math.PI * 2);
+        ctx.fill();
     }
 
     isOffScreen() {
@@ -131,11 +193,38 @@ function update() {
 }
 
 function draw() {
-    ctx.fillStyle = '#e0f6ff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // 空の背景（グラデーション）
+    const skyGradient = ctx.createLinearGradient(0, 0, 0, canvas.height * 0.6);
+    skyGradient.addColorStop(0, '#1A1A2E');
+    skyGradient.addColorStop(1, '#16213E');
+    ctx.fillStyle = skyGradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height * 0.6);
 
-    ctx.fillStyle = '#90EE90';
-    ctx.fillRect(0, canvas.height - 50, canvas.width, 50);
+    // 地面のグラデーション
+    const groundGradient = ctx.createLinearGradient(0, canvas.height * 0.6, 0, canvas.height);
+    groundGradient.addColorStop(0, '#0F3460');
+    groundGradient.addColorStop(1, '#16A34A');
+    ctx.fillStyle = groundGradient;
+    ctx.fillRect(0, canvas.height * 0.6, canvas.width, canvas.height * 0.4);
+
+    // 地面の草のディテール
+    ctx.fillStyle = '#22C55E';
+    for (let i = 0; i < canvas.width; i += 20) {
+        ctx.beginPath();
+        ctx.moveTo(i, canvas.height - 50);
+        ctx.lineTo(i + 5, canvas.height - 55);
+        ctx.lineTo(i + 10, canvas.height - 50);
+        ctx.fill();
+    }
+
+    // 雲的なデコレーション
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+    ctx.beginPath();
+    ctx.arc(150, 50, 40, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(600, 80, 50, 0, Math.PI * 2);
+    ctx.fill();
 
     player.draw(ctx);
     
@@ -143,9 +232,10 @@ function draw() {
         enemy.draw(ctx);
     }
 
-    ctx.fillStyle = '#999';
-    ctx.font = '14px Arial';
-    ctx.fillText('避けてスコアを稼ぐ！', 10, 25);
+    // ゲーム情報表示
+    ctx.fillStyle = '#FFD60A';
+    ctx.font = 'bold 16px Arial';
+    ctx.fillText('🎮 敵を避けてスコアを稼ぐ！', 10, 30);
 }
 
 function gameLoop() {
