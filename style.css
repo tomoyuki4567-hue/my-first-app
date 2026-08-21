@@ -26,16 +26,38 @@ body {
 .hud {
     display: flex;
     justify-content: space-between;
+    align-items: center;
     margin-bottom: 15px;
     font-size: 18px;
     font-weight: bold;
     color: #333;
+    gap: 20px;
 }
 
-.score, .lives {
+.score {
+    flex: 1;
+    text-align: center;
+    font-size: 18px;
+    padding: 10px;
+    background: linear-gradient(135deg, #FFD60A, #FFA500);
+    color: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(255, 165, 0, 0.3);
+    font-weight: bold;
+}
+
+.score #score {
+    font-size: 28px;
+    display: block;
+    margin-top: 3px;
+}
+
+.lives {
     padding: 10px 20px;
-    background: #f0f0f0;
-    border-radius: 5px;
+    background: #FFE4E1;
+    border-radius: 8px;
+    font-size: 28px;
+    color: #FF1493;
 }
 
 #gameCanvas {

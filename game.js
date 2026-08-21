@@ -289,7 +289,7 @@ function update() {
     }
 
     document.getElementById('score').textContent = score;
-    document.getElementById('lives').textContent = lives;
+    document.getElementById('lives').textContent = '♡'.repeat(lives);
 }
 
 function draw() {
