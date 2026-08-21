@@ -14,25 +14,108 @@ class Player {
         this.damageKnockback = 0;
         this.sprite = null;
         this.spriteLoaded = false;
+        // アニメーション関連
+        this.frame = 0;
+        this.frameTick = 0;
+        this.lastDir = 'right';
+        this.bob = 0; // 歩行時の上下ゆれ
         this.loadSprite();
     }
 
-    loadSprite() {
-        const img = new Image();
-        img.crossOrigin = "Anonymous";
-        img.onload = () => {
-            this.sprite = img;
+    async loadSprite() {
+        // まずローカルのドット絵フレームを優先して読み込む
+        const walkFrames = ['assets/chades_walk1.svg', 'assets/chades_walk2.svg'];
+        const hurtFrame = 'assets/chades_hurt.svg';
+        this.frames = [];
+        this.hurtFrame = null;
+        let loadedCount = 0;
+
+        const tryLoadLocal = () => new Promise((resolve) => {
+            let toLoad = walkFrames.length + 1; // walk frames + hurt
+            const onLoaded = () => {
+                loadedCount++;
+                toLoad--;
+                if (toLoad <= 0) resolve(true);
+            };
+
+            // load walk frames
+            walkFrames.forEach((p) => {
+                const img = new Image();
+                img.onload = () => {
+                    this.frames.push(img);
+                    onLoaded();
+                };
+                img.onerror = () => onLoaded();
+                img.src = p;
+            });
+
+            // load hurt frame
+            const imgH = new Image();
+            imgH.onload = () => {
+                this.hurtFrame = imgH;
+                onLoaded();
+            };
+            imgH.onerror = () => onLoaded();
+            imgH.src = hurtFrame;
+        });
+
+        try {
+            await tryLoadLocal();
+        } catch (e) {
+            // ignore
+        }
+
+        if (this.frames.length > 0) {
+            // ローカルフレームがある場合はそれを使用
             this.spriteLoaded = true;
-        };
-        img.onerror = () => {
-            console.log("スプライト読み込み失敗");
-        };
-        img.src = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-v/black-white/1025.png';
+            this.useFrames = true;
+            return;
+        }
+
+        // ローカルが無ければ PokéAPI から取得して単一スプライトを使う
+        try {
+            const id = 1012; // 指定された図鑑番号
+            const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${id}`);
+            const data = await res.json();
+
+            let url = null;
+            try {
+                url = data.sprites.versions['generation-v']['black-white'].animated.front_default;
+            } catch (e) { /* ignore */ }
+            if (!url) url = data.sprites.front_default;
+            if (!url && data.sprites.other && data.sprites.other['official-artwork']) {
+                url = data.sprites.other['official-artwork'].front_default;
+            }
+
+            if (!url) {
+                console.warn('スプライトが見つかりませんでした');
+                return;
+            }
+
+            const img = new Image();
+            img.crossOrigin = 'Anonymous';
+            img.onload = () => {
+                this.sprite = img;
+                this.spriteLoaded = true;
+            };
+            img.onerror = () => {
+                console.log('スプライト読み込み失敗', url);
+            };
+            img.src = url;
+        } catch (err) {
+            console.error('PokéAPI 取得エラー', err);
+        }
     }
 
     update(keys) {
-        if (keys['ArrowLeft']) this.velocityX = -this.speed;
-        else if (keys['ArrowRight']) this.velocityX = this.speed;
+        if (keys['ArrowLeft']) {
+            this.velocityX = -this.speed;
+            this.lastDir = 'left';
+        }
+        else if (keys['ArrowRight']) {
+            this.velocityX = this.speed;
+            this.lastDir = 'right';
+        }
         else this.velocityX = 0;
 
         if (keys[' '] && !this.isJumping) {
@@ -61,20 +144,59 @@ class Player {
             this.isJumping = false;
         }
 
+        // 歩行アニメ制御（簡易：歩いているときに上下ボブとフレーム切替）
+        if (this.velocityX !== 0 && !this.isJumping) {
+            this.frameTick++;
+            if (this.frameTick > 6) {
+                this.frame = (this.frame + 1) % 4;
+                this.frameTick = 0;
+            }
+            this.bob = Math.sin((this.frame / 4) * Math.PI * 2) * 4;
+        } else {
+            this.frame = 0;
+            this.frameTick = 0;
+            this.bob = 0;
+        }
+
         this.x = Math.max(0, Math.min(this.x, canvas.width - this.width));
     }
 
     draw(ctx) {
-        // スプライト画像が読み込まれている場合はそれを描画
-        if (this.spriteLoaded && this.sprite) {
+        // スプライトがローカルフレームからあるか単一スプライトかに応じて描画
+        if (this.spriteLoaded) {
             ctx.save();
-            // 画像を水平反転（左右反転）
-            ctx.scale(-1, 1);
-            ctx.drawImage(this.sprite, -this.x - this.width, this.y, this.width, this.height);
+            // ここでは画像の向きが逆だったため、右向きのときに反転するように調整
+            const shouldFlip = (this.lastDir === 'right');
+
+            if (shouldFlip) ctx.scale(-1, 1);
+
+            if (this.useFrames && this.frames && this.frames.length > 0) {
+                // 歩行フレーム（フレーム配列から選択）
+                const frameImg = this.frames[this.frame % this.frames.length];
+                if (shouldFlip) ctx.drawImage(frameImg, -this.x - this.width, this.y + this.bob, this.width, this.height);
+                else ctx.drawImage(frameImg, this.x, this.y + this.bob, this.width, this.height);
+            } else if (this.hurtFrame && this.hitEffect > 0) {
+                // ダメージ専用フレーム優先
+                if (shouldFlip) ctx.drawImage(this.hurtFrame, -this.x - this.width, this.y + this.bob, this.width, this.height);
+                else ctx.drawImage(this.hurtFrame, this.x, this.y + this.bob, this.width, this.height);
+            } else if (this.sprite) {
+                // フォールバックの単一スプライト
+                if (shouldFlip) ctx.drawImage(this.sprite, -this.x - this.width, this.y + this.bob, this.width, this.height);
+                else ctx.drawImage(this.sprite, this.x, this.y + this.bob, this.width, this.height);
+            } else {
+                // 最終プレースホルダ
+                if (shouldFlip) ctx.fillRect(-this.x - this.width, this.y + this.bob, this.width, this.height);
+                else ctx.fillRect(this.x, this.y + this.bob, this.width, this.height);
+            }
+
             ctx.restore();
+        } else {
+            // スプライトが無ければプレースホルダを描画
+            ctx.fillStyle = '#FFDD57';
+            ctx.fillRect(this.x, this.y, this.width, this.height);
         }
-        
-        // ダメージフラッシュエフェクト
+
+        // ダメージフラッシュエフェクト（重ねて表示）
         if (this.hitEffect > 0) {
             const flashAlpha = this.hitEffect / 10;
             ctx.fillStyle = `rgba(255, 100, 100, ${flashAlpha * 0.5})`;
@@ -189,7 +311,7 @@ class DamageParticle {
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-const player = new Player(100, canvas.height - 90);
+const player = new Player(100, canvas.height - 50 - 64);
 const keys = {};
 let enemies = [];
 let particles = [];
