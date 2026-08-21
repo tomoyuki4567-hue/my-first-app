@@ -235,7 +235,6 @@ function update() {
 
         if (enemies[i].isOffScreen()) {
             enemies.splice(i, 1);
-            score += 10;
         }
     }
 
@@ -245,7 +244,10 @@ function update() {
         spawnCounter = 0;
     }
 
-    document.getElementById('score').textContent = score;
+    // 毎フレーム0.1ずつスコア増加
+    score += 0.1;
+
+    document.getElementById('score').textContent = Math.floor(score);
     document.getElementById('lives').textContent = '♡'.repeat(lives);
 }
 
@@ -307,7 +309,7 @@ function gameLoop() {
 }
 
 function showGameOver() {
-    document.getElementById('finalScore').textContent = score;
+    document.getElementById('finalScore').textContent = Math.floor(score);
     document.getElementById('gameOver').style.display = 'block';
 }
 
