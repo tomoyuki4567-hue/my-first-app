@@ -2,8 +2,8 @@ class Player {
     constructor(x, y) {
         this.x = x;
         this.y = y;
-        this.width = 30;
-        this.height = 40;
+        this.width = 64;
+        this.height = 64;
         this.velocityY = 0;
         this.velocityX = 0;
         this.speed = 5;
@@ -12,6 +12,22 @@ class Player {
         this.gravity = 0.6;
         this.hitEffect = 0;
         this.damageKnockback = 0;
+        this.sprite = null;
+        this.spriteLoaded = false;
+        this.loadSprite();
+    }
+
+    loadSprite() {
+        const img = new Image();
+        img.crossOrigin = "Anonymous";
+        img.onload = () => {
+            this.sprite = img;
+            this.spriteLoaded = true;
+        };
+        img.onerror = () => {
+            console.log("スプライト読み込み失敗");
+        };
+        img.src = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-v/black-white/1025.png';
     }
 
     update(keys) {
@@ -49,74 +65,15 @@ class Player {
     }
 
     draw(ctx) {
-        // プレイヤーの体
-        ctx.fillStyle = '#FF6B6B';
-        ctx.fillRect(this.x, this.y, this.width, this.height);
-        
-        // グラデーション効果
-        const gradient = ctx.createLinearGradient(this.x, this.y, this.x, this.y + this.height);
-        gradient.addColorStop(0, '#FF8C8C');
-        gradient.addColorStop(1, '#DD4444');
-        ctx.fillStyle = gradient;
-        ctx.fillRect(this.x, this.y, this.width, this.height);
-        
-        // 影
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-        ctx.fillRect(this.x, this.y + this.height - 3, this.width, 3);
-        
-        // ダメージ時の目 >＜
-        if (this.hitEffect > 0) {
-            ctx.fillStyle = '#FFF';
-            ctx.beginPath();
-            ctx.arc(this.x + 10, this.y + 12, 4, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.beginPath();
-            ctx.arc(this.x + 20, this.y + 12, 4, 0, Math.PI * 2);
-            ctx.fill();
-            
-            // やられた目（>＜）
-            ctx.strokeStyle = '#000';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(this.x + 6, this.y + 10);
-            ctx.lineTo(this.x + 12, this.y + 14);
-            ctx.moveTo(this.x + 12, this.y + 10);
-            ctx.lineTo(this.x + 6, this.y + 14);
-            ctx.stroke();
-            
-            ctx.beginPath();
-            ctx.moveTo(this.x + 16, this.y + 10);
-            ctx.lineTo(this.x + 22, this.y + 14);
-            ctx.moveTo(this.x + 22, this.y + 10);
-            ctx.lineTo(this.x + 16, this.y + 14);
-            ctx.stroke();
-        } else {
-            // 通常の目
-            ctx.fillStyle = '#FFF';
-            ctx.beginPath();
-            ctx.arc(this.x + 10, this.y + 12, 4, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.beginPath();
-            ctx.arc(this.x + 20, this.y + 12, 4, 0, Math.PI * 2);
-            ctx.fill();
-            
-            // 瞳
-            ctx.fillStyle = '#000';
-            ctx.beginPath();
-            ctx.arc(this.x + 10, this.y + 12, 2, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.beginPath();
-            ctx.arc(this.x + 20, this.y + 12, 2, 0, Math.PI * 2);
-            ctx.fill();
+        // スプライト画像が読み込まれている場合はそれを描画
+        if (this.spriteLoaded && this.sprite) {
+            ctx.save();
+            // 画像を水平反転（左右反転）
+            ctx.scale(-1, 1);
+            ctx.drawImage(this.sprite, -this.x - this.width, this.y, this.width, this.height);
+            ctx.restore();
         }
         
-        // 口
-        ctx.strokeStyle = '#000';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.arc(this.x + 15, this.y + 25, 3, 0, Math.PI);
-        ctx.stroke();
-
         // ダメージフラッシュエフェクト
         if (this.hitEffect > 0) {
             const flashAlpha = this.hitEffect / 10;
