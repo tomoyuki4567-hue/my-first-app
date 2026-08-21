@@ -10,6 +10,8 @@ class Player {
         this.jumpPower = 12;
         this.isJumping = false;
         this.gravity = 0.6;
+        this.hitEffect = 0;
+        this.damageKnockback = 0;
     }
 
     update(keys) {
@@ -24,7 +26,18 @@ class Player {
 
         this.velocityY += this.gravity;
         this.y += this.velocityY;
-        this.x += this.velocityX;
+        this.x += this.velocityX + this.damageKnockback;
+
+        // ノックバック減衰
+        if (this.damageKnockback !== 0) {
+            this.damageKnockback *= 0.85;
+            if (Math.abs(this.damageKnockback) < 0.1) this.damageKnockback = 0;
+        }
+
+        // ヒットエフェクト時間
+        if (this.hitEffect > 0) {
+            this.hitEffect--;
+        }
 
         if (this.y + this.height >= canvas.height - 50) {
             this.y = canvas.height - 50 - this.height;
@@ -51,23 +64,51 @@ class Player {
         ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
         ctx.fillRect(this.x, this.y + this.height - 3, this.width, 3);
         
-        // 目
-        ctx.fillStyle = '#FFF';
-        ctx.beginPath();
-        ctx.arc(this.x + 10, this.y + 12, 4, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(this.x + 20, this.y + 12, 4, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // 瞳
-        ctx.fillStyle = '#000';
-        ctx.beginPath();
-        ctx.arc(this.x + 10, this.y + 12, 2, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(this.x + 20, this.y + 12, 2, 0, Math.PI * 2);
-        ctx.fill();
+        // ダメージ時の目 >＜
+        if (this.hitEffect > 0) {
+            ctx.fillStyle = '#FFF';
+            ctx.beginPath();
+            ctx.arc(this.x + 10, this.y + 12, 4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(this.x + 20, this.y + 12, 4, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // やられた目（>＜）
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(this.x + 6, this.y + 10);
+            ctx.lineTo(this.x + 12, this.y + 14);
+            ctx.moveTo(this.x + 12, this.y + 10);
+            ctx.lineTo(this.x + 6, this.y + 14);
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.moveTo(this.x + 16, this.y + 10);
+            ctx.lineTo(this.x + 22, this.y + 14);
+            ctx.moveTo(this.x + 22, this.y + 10);
+            ctx.lineTo(this.x + 16, this.y + 14);
+            ctx.stroke();
+        } else {
+            // 通常の目
+            ctx.fillStyle = '#FFF';
+            ctx.beginPath();
+            ctx.arc(this.x + 10, this.y + 12, 4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(this.x + 20, this.y + 12, 4, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // 瞳
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.arc(this.x + 10, this.y + 12, 2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(this.x + 20, this.y + 12, 2, 0, Math.PI * 2);
+            ctx.fill();
+        }
         
         // 口
         ctx.strokeStyle = '#000';
@@ -75,6 +116,25 @@ class Player {
         ctx.beginPath();
         ctx.arc(this.x + 15, this.y + 25, 3, 0, Math.PI);
         ctx.stroke();
+
+        // ダメージフラッシュエフェクト
+        if (this.hitEffect > 0) {
+            const flashAlpha = this.hitEffect / 10;
+            ctx.fillStyle = `rgba(255, 100, 100, ${flashAlpha * 0.5})`;
+            ctx.fillRect(this.x, this.y, this.width, this.height);
+        }
+    }
+
+    takeDamage(knockbackForce) {
+        this.hitEffect = 10;
+        this.damageKnockback = -knockbackForce;
+        // パーティクル生成
+        for (let i = 0; i < 8; i++) {
+            particles.push(new DamageParticle(
+                this.x + this.width / 2,
+                this.y + this.height / 2
+            ));
+        }
     }
 
     collidesWith(enemy) {
@@ -139,12 +199,43 @@ class Enemy {
     }
 }
 
+class DamageParticle {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.velocityX = (Math.random() - 0.5) * 10;
+        this.velocityY = (Math.random() - 0.5) * 10 - 2;
+        this.life = 25;
+        this.size = Math.random() * 5 + 4;
+    }
+
+    update() {
+        this.x += this.velocityX;
+        this.y += this.velocityY;
+        this.velocityY += 0.3;
+        this.life--;
+    }
+
+    draw(ctx) {
+        const alpha = this.life / 25;
+        ctx.fillStyle = `rgba(255, 100, 100, ${alpha * 0.7})`;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    isAlive() {
+        return this.life > 0;
+    }
+}
+
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
 const player = new Player(100, canvas.height - 90);
 const keys = {};
 let enemies = [];
+let particles = [];
 let score = 0;
 let lives = 3;
 let gameOver = false;
@@ -162,12 +253,21 @@ function update() {
     if (gameOver) return;
 
     player.update(keys);
+
+    // パーティクル更新
+    for (let i = particles.length - 1; i >= 0; i--) {
+        particles[i].update();
+        if (!particles[i].isAlive()) {
+            particles.splice(i, 1);
+        }
+    }
     
     for (let i = enemies.length - 1; i >= 0; i--) {
         enemies[i].update();
 
         if (player.collidesWith(enemies[i])) {
             lives--;
+            player.takeDamage(2);
             enemies.splice(i, 1);
             if (lives <= 0) {
                 gameOver = true;
@@ -230,6 +330,11 @@ function draw() {
     
     for (let enemy of enemies) {
         enemy.draw(ctx);
+    }
+
+    // パーティクル描画
+    for (let particle of particles) {
+        particle.draw(ctx);
     }
 
     // ゲーム情報表示
